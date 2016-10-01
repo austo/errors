@@ -166,9 +166,6 @@ function slice() {
   return args;
 }
 
-module.exports = extend;
-
-
 module.exports = SwError;
 
 function isObjectOrError(v) {
