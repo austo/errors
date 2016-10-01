@@ -1,0 +1,28 @@
+{
+  "name": "swerrs",
+  "version": "0.0.1",
+  "description": "Extensible error types for V8",
+  "main": "index.js",
+  "scripts": {
+    "test": "mocha --opts test/mocha.opts test/*.test.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/austo/swerrs.git"
+  },
+  "keywords": [
+    "error",
+    "type",
+    "extend",
+    "callback",
+    "value",
+    "aggregate",
+    "transport"
+  ],
+  "author": "Austin Moran",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/austo/swerrs/issues"
+  },
+  "homepage": "https://github.com/austo/swerrs"
+}
