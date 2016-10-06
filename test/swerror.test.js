@@ -3,8 +3,6 @@
 
 'use strict';
 
-// TODO: migrate to SwError and add to travis
-
 const assert = require('assert'),
   utils = require('./utils'),
   SwError = require('../');
@@ -144,3 +142,4 @@ function logIf() {
     console.log.apply(null, arguments);
   }
 }
+

@@ -3,9 +3,9 @@
 
 function parse(args) {
   let result = {
-      message: '',
-      values: []
-    };
+    message: '',
+    values: []
+  };
   handleArgs(args, result);
   return result;
 }
@@ -28,11 +28,12 @@ function handleArgs(args, result) {
   });
 }
 
-
+/* jshint ignore:start */
 // see here: https://github.com/petkaantonov/bluebird/wiki/Optimization-killers
 // and here: http://mrale.ph/blog/2015/11/02/crankshaft-vs-arguments-object.html
 // and here: http://stackoverflow.com/questions/23662764/difference-between-array-prototype-slice-callarguments-and-array-applynull-a
-// TODO: move this to its own module and write an optimization test or two
+/* jshint ignore:end */
+// TODO: write an optimization test or two
 function slice() {
   var i = arguments.length,
     args = [];
