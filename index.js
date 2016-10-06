@@ -1,115 +1,137 @@
 'use strict';
 
-const EventEmitter = require('events');
+const EventEmitter = require('events'),
+  pargs = require('./pargs');
 
-// TODO: what are the required fields?
-// I want to see a base SwError spec when I invoke
-// SwError.spec();
-
-function SwError(msg, errs) {
+function SwError() {
+  let args = pargs.slice.apply(null, arguments);
   if (!(this instanceof SwError)) {
-    return new SwError(msg, errs);
+    let obj = Object.create(SwError.prototype);
+    return newError(obj, args);
   }
+  return newError(this, args);
+}
 
-  const spec = this.constructor.spec,
-    events = this.constructor.events;
+function newError(swerr, argsArray) {
+
+  const spec = swerr.constructor.spec,
+    events = swerr.constructor.events;
 
   Object.keys(spec).forEach(k => {
     let v = renderTemplate(spec[k], spec);
-    this[k] = v;
+    swerr[k] = v;
   });
 
-  if (typeof msg === 'string') {
-    this.message = msg;
-  }
+  let args = pargs.parse(argsArray);
 
-  // TODO: clean this up.
-  // Once msg is dealt with, use a function
-  // to dispatch the remaining arguments according to their
-  // types.
-  // Users should't have to memorize the argument order.
-  else if (isObjectOrError(msg)) {
-    copyShallow(this, msg);
-  }
-  else {
-    if (Array.isArray(msg)) {
-      this.aggregatedErrors = msg;
-    }
-  }
+  swerr.message = args.message || swerr.message;
+  swerr.values = args.values;
 
-  if (!this.ignoreStack) {
-    Error.captureStackTrace(this, this.constructor);
-  }
-
-  if (Array.isArray(errs) && (!this.aggregatedErrors)) {
-    this.aggregatedErrors = errs;
-  }
-  else if (isObjectOrError(errs)) {
-    copyShallow(this, errs);
-  }
-  else if (errs) {
-    this.primitaveValue = errs;
-  }
+  Error.captureStackTrace(swerr, swerr.constructor);
 
   let ee = new EventEmitter();
 
   Object.keys(events).forEach(evt => {
     events[evt].forEach(fn => {
-      ee.on(evt, fn.bind(this));
+      ee.on(evt, fn.bind(swerr));
     });
   });
 
-  process.nextTick(() => ee.emit('constructed', this));
+  Object.defineProperty(swerr, 'push', { value: makePush(swerr, ee) });
+  Object.defineProperty(swerr, 'on', { value: makeOn(swerr, ee) });
+
+  process.nextTick(() => {
+    ee.emit('constructed', swerr);
+    swerr.values.forEach(v => ee.emit('push', v));
+  });
+
+  return swerr;
 }
 
-// TODO: add a push method to the prototype which can handle varargs or array
-// two notifications:
-// 'constructed' (`this` context or instance as argument)
-// 'push' (`this` context or instance as first arg + pushed error as second arg)
+function makePush(swerr, ee) {
+  return function push(v) {
+    swerr.values = swerr.values || [];
+    swerr.values.push(v);
+    ee.emit('push', v);
+  };
+}
+
+function makeOn(swerr, ee) {
+  return function on(evt, fn) {
+    if (evt === 'constructed' || allowedEvents.indexOf(evt) === -1) {
+      throw new TypeError(`SwError: unsupported event ${evt}`);
+    }
+    if (typeof fn !== 'function') {
+      throw new TypeError('second argument must be a function');
+    }
+    ee.on(evt, fn.bind(swerr));
+    return swerr;
+  };
+}
 
 SwError.prototype = Object.create(Error.prototype);
 SwError.prototype.constructor = SwError;
 
-// TODO: figure out the JSON/transport story. What are the rules
-// for including the stack.
-
 SwError.prototype.transport = function() {
-  return transport(this);
+  return transport(this, !!this.serializeStack);
 };
 
 SwError.prototype.toJSON = function() {
-  return transport(this);
+  return this.transport();
 };
+
+// NOTE: adding properties on the constructor itself
+// is really not safe for V8 optimization
+// (https://github.com/petkaantonov/bluebird/wiki/Optimization-killers#3-managing-arguments).
+// We skirt the issue here by _always_ adding the same 4 properties to each
+// extended constructor.
+
+// TODO: It's optimizing correctly now, but...
+// Maybe objects get non-enumerable prototype guids,
+// then consult a private map of spec/events??
 
 SwError.spec = Object.freeze({
   name: 'SwError',
   message: '{{name}} aggregated error',
-  ignoreStack: false
+  serializeStack: false
 });
 
 SwError.events = {};
+SwError.parent = Error;
 
-SwError.extend = function(props) {
-  const self = this,
-    extensionProps = mergeSpecs(self, props),
-    ctor = extend(self);
-  ctor.spec = extensionProps.spec;
-  ctor.events = extensionProps.events;
-  ctor.parent = self;
-  ctor.extend = function(p) {
-    return self.extend.call(this, p);
+// TODO: can we put the spec items on the extension's prototype?
+SwError.extend = makeExtend(SwError);
+
+module.exports = SwError;
+
+// TODO: JSDoc!
+
+// Below here is private
+
+function makeExtend(parent) {
+  return function(props) {
+    const extensionProps = mergeSpecs(parent, props);
+    const child = extend(parent);
+    child.spec = extensionProps.spec;
+    child.events = extensionProps.events;
+    child.parent = parent;
+    child.extend = makeExtend(child);
+    return child;
   };
-  return ctor;
-};
+}
 
 function extend(clazz) {
+  if (nAncestors(clazz) >= 10) { // TODO: make configurable??
+    throw new TypeError('SwError: inheritance limit reached');
+  }
+
   function SwErrorExtension() {
+    let args = pargs.slice.apply(null, arguments);
     if (!(this instanceof SwErrorExtension)) {
       let obj = Object.create(SwErrorExtension.prototype);
-      return SwErrorExtension.apply(obj, arguments);
+      return newError(obj, args);
     }
-    clazz.apply(this, arguments);
-    return this;
+    return newError(this, args);
   }
   SwErrorExtension.prototype = Object.create(clazz.prototype);
   SwErrorExtension.prototype.constructor = SwErrorExtension;
@@ -122,99 +144,74 @@ const allowedEventsRe = new RegExp('^on(' +
   .map(e => e[0].toUpperCase() + e.substr(1))
   .join('|') + ')$');
 
-// TODO: allow insertion of methods on the subclass prototype??
 function mergeSpecs(parent, childProps) {
   let result = {
     spec: {},
     events: {}
   };
-  allowedEvents.forEach(evt => result.events[evt] = []);
-  Object.keys(childProps).forEach(k => {
-    if (typeof childProps[k] !== 'function') {
-      result.spec[k] = childProps[k];
-      console.log(result);
-      return;
-    }
-    if (allowedEventsRe.test(k)) {
-      result.events[k.replace(allowedEventsRe, (match, evt) => evt.toLowerCase())].push(childProps[k]);
-    }
-  });
   Object.keys(parent.spec).forEach(k => {
-    if (!result.spec.hasOwnProperty(k)) {
-      result.spec[k] = parent.spec[k];
-    }
+    result.spec[k] = parent.spec[k];
   });
   Object.keys(parent.events).forEach(k => {
+    result.events[k] = result.events[k] || [];
     parent.events[k].forEach(evt => {
-      result.events[evt].push(evt);
+      result.events[k].unshift(evt);
     });
   });
-  console.log(result);
+  Object.keys(childProps).forEach(k => {
+    if (!allowedEventsRe.test(k)) {
+      result.spec[k] = childProps[k];
+      return;
+    }
+    let evt = k.replace(allowedEventsRe, (match, evt) => evt.toLowerCase());
+    if (typeof childProps[k] === 'function') {
+      result.events[evt] = result.events[evt] || [];
+      result.events[evt].push(childProps[k]);
+      return;
+    }
+    if (childProps[k] === null) {
+      result.events[evt] = [];
+    }
+  });
   return result;
 }
 
-// see here: https://github.com/petkaantonov/bluebird/wiki/Optimization-killers
-// and here: http://mrale.ph/blog/2015/11/02/crankshaft-vs-arguments-object.html
-// and here: http://stackoverflow.com/questions/23662764/difference-between-array-prototype-slice-callarguments-and-array-applynull-a
-// TODO: move this to its own module and write an optimization test or two
-function slice() {
-  var i = arguments.length,
-    args = [];
-  while (i--) {
-    args[i] = arguments[i];
+function nAncestors(clazz) {
+  var i = 0;
+  let parent = clazz.parent;
+
+  while (parent && parent.spec) {
+    i++;
+    parent = parent.parent;
   }
-  return args;
+  return i;
 }
 
-module.exports = SwError;
-
-function isObjectOrError(v) {
-  let t = type(v);
-  return t === 'Object' || t === 'Error';
-}
-
-function copyShallow(dst, src) {
+function copySafe(dst, src, serializeStack) {
   Object.getOwnPropertyNames(src).forEach(k => {
-    if (typeof dst[k] === 'undefined') {
-      dst[k] = src[k];
+    if (!serializeStack && k === 'stack') {
+      return;
     }
-    else {
-      let newKey = 'original' + (k[0].toUpperCase() + k.substr(1));
-      dst[newKey] = src[k];
+    if (typeof src[k] === 'function') {
+      return;
     }
-  });
-}
-
-function copySafe(dst, src) {
-  Object.getOwnPropertyNames(src).forEach(k => {
-    switch (k) {
-      // TODO: see stack comment above
-      // case 'stack':
-      // case 'originalStack': 
-      case 'region':
-      case 'extendedRequestId':
-      case 'retryable':
-      case 'retryDelay':
-        return;
-      default:
-        dst[k] = transport(src[k]);
-    }
+    dst[k] = transport(src[k], serializeStack);
   });
   return dst;
 }
 
-function transport(v) {
+function transport(v, serializeStack) {
   let t = type(v);
 
   switch (t) {
     case 'Object':
-      return copySafe({}, v);
+      return copySafe({}, v, serializeStack);
     case 'Error':
       return copySafe({
         name: v.constructor.name
-      }, v);
+      }, v, serializeStack);
     case 'Array':
-      return v.map(x => transport(x));
+      return v.map(x => transport(x, serializeStack));
     default:
       return v;
   }

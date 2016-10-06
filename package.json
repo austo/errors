@@ -25,5 +25,8 @@
   "bugs": {
     "url": "https://github.com/austo/swerrs/issues"
   },
-  "homepage": "https://github.com/austo/swerrs"
+  "homepage": "https://github.com/austo/swerrs",
+  "devDependencies": {
+    "mocha": "^3.1.0"
+  }
 }

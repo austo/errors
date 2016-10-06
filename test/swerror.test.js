@@ -6,231 +6,141 @@
 // TODO: migrate to SwError and add to travis
 
 const assert = require('assert'),
-  FlagError = require('../lib/FlagError');
+  utils = require('./utils'),
+  SwError = require('../');
 
-suite('FlagError', function() {
-  let e = new Error(`I have no idea what you're talking about`);
-  e.statusCode = 404;
+suite('SwError', function() {
 
-  test('handle arguments correctly', () => {
-    const msg = `Here's an error`;
-    const expected = [{
-      name: 'FlagError',
-      message: 'Here\'s an error',
-    }, {
-      name: 'FlagError',
-      message: 'Here\'s an error',
-      originalMessage: 'I have no idea what you\'re talking about',
-      statusCode: 404
-    }, {
-      name: 'FlagError',
-      message: 'Here\'s an error',
-      aggregatedErrors: [{
-        name: 'Error',
-        message: 'I have no idea what you\'re talking about',
-        statusCode: 404
-      }, {
-        name: 'Error',
-        message: 'I have no idea what you\'re talking about',
-        statusCode: 404
-      }]
-    }, {
-      name: 'FlagError',
-      originalMessage: 'I have no idea what you\'re talking about',
-      statusCode: 404,
-    }, {
-      name: 'FlagError',
-      message: 'FlagError aggregated error',
-      aggregatedErrors: [{
-        name: 'Error',
-        message: 'I have no idea what you\'re talking about',
-        statusCode: 404
-      }, {
-        name: 'Error',
-        message: 'I have no idea what you\'re talking about',
-        statusCode: 404
-      }],
-    }, {
-      name: 'FlagError',
-      originalMessage: 'I have no idea what you\'re talking about',
-      statusCode: 404,
-      primitaveValue: 'BOOM!'
-    }];
-    [
-      [msg],
-      [msg, e],
-      [msg, [e, e]],
-      [e],
-      [
-        [e, e]
-      ],
-      [e, 'BOOM!']
-    ].forEach((args, i) => {
-      assert.deepEqual(expected[i], FlagError.apply(null, args).transport());
+  const props = [{
+    name: 'ChildError'
+  }, {
+    serializeStack: true
+  }, {
+    name: 'GreatGrandChildError',
+    onPush: function(v) {
+      logIf(`${new Date()}: 1 ${this.message}, pushed ${v}`);
+    }
+  }, {
+    message: 'I am {{name}}',
+    onPush: function(v) {
+      logIf(`${new Date()}: 2 ${this.message}, pushed ${v}`);
+    }
+  }, {
+    foo: 'bar'
+  }, {
+    foo: {
+      bar: 'baz'
+    },
+    onPush: function(v) {
+      logIf(`${new Date()}: 3 ${this.message}, pushed ${v}`);
+    }
+  }, {
+    sayHi: function() {
+      logIf(`Hello from ${this}!!`);
+    }
+  }];
+
+  let descendants = utils.makeDescendants(SwError, props);
+
+  suite('Inheritance', function() {
+    descendants.forEach((C, i) => {
+      test(`${i}${ordinal(i)} descendant should be well-formed`, done => {
+        let c = new C();
+        assert(c instanceof C);
+        assert(c instanceof C.parent);
+        assert(c instanceof SwError);
+        assert(Array.isArray(c.values));
+        if (i > 0) {
+          if (props[i - 1].onPush) {
+            assert(C.events.push[C.events.push.length - 1] === props[i - 1].onPush);
+          }
+        }
+        done();
+      });
     });
   });
 
-  const msg = 'He has no idea',
-    driver = [{
-      args: [msg],
-      transport: {
-        name: "InvalidFileError",
-        message: msg,
-        invalidFile: true
-      },
-      properties: [
-        "name",
-        "message",
-        "stack",
-        "invalidFile"
-      ]
-    }, {
-      args: [msg, e],
-      transport: {
-        name: "InvalidFileError",
-        message: msg,
-        originalMessage: "I have no idea what you're talking about",
-        statusCode: 404,
-        invalidFile: true
-      },
-      properties: [
-        "name",
-        "message",
-        "stack",
-        "originalStack",
-        "originalMessage",
-        "statusCode",
-        "invalidFile"
-      ]
-    }, {
-      args: [msg, [e, e]],
-      transport: {
-        name: "InvalidFileError",
-        message: msg,
-        aggregatedErrors: [{
-          name: "Error",
-          message: "I have no idea what you're talking about",
-          statusCode: 404
-        }, {
-          name: "Error",
-          message: "I have no idea what you're talking about",
-          statusCode: 404
-        }],
-        invalidFile: true
-      },
-      properties: [
-        "name",
-        "message",
-        "stack",
-        "aggregatedErrors",
-        "invalidFile"
-      ]
-    }, {
-      args: [e],
-      transport: {
-        name: "InvalidFileError",
-        originalMessage: "I have no idea what you're talking about",
-        statusCode: 404,
-        invalidFile: true
-      },
-      properties: [
-        "name",
-        "stack",
-        "originalMessage",
-        "statusCode",
-        "invalidFile"
-      ]
-    }, {
-      args: [
-        [e, e]
-      ],
-      transport: {
-        name: "InvalidFileError",
-        message: "InvalidFileError aggregated error",
-        aggregatedErrors: [{
-          name: "Error",
-          message: "I have no idea what you're talking about",
-          statusCode: 404
-        }, {
-          name: "Error",
-          message: "I have no idea what you're talking about",
-          statusCode: 404
-        }],
-        invalidFile: true
-      },
-      properties: [
-        "name",
-        "message",
-        "aggregatedErrors",
-        "stack",
-        "invalidFile"
-      ]
-    }, {
-      args: [e, 'BOOM!'],
-      transport: {
-        name: "InvalidFileError",
-        originalMessage: "I have no idea what you're talking about",
-        statusCode: 404,
-        primitaveValue: "BOOM!",
-        invalidFile: true
-      },
-      properties: [
-        "name",
-        "stack",
-        "originalMessage",
-        "statusCode",
-        "primitaveValue",
-        "invalidFile"
-      ]
-    }, {
-      args: [{
-        statusCode: 200
-      }],
-      transport: {
-        name: "InvalidFileError",
-        statusCode: 200,
-        invalidFile: false
-      },
-      properties: [
-        "name",
-        "statusCode",
-        "stack",
-        "invalidFile"
-      ]
-    }];
+  suite('Optimization', function() {
+    descendants.forEach((C, i) => {
+      test(`${i}${ordinal(i)} descendant should be optimized and have fast properties`, done => {
+        let c = new C(new Error());
+        new C(new Error());
+        utils.optimizeOnNextCall(C);
+        new C(new Error());
+        process.nextTick(() => {
+          assert.strictEqual(1, utils.getOptimizationStatus(C));
+          assert.strictEqual(true, utils.hasFastProperties(c));
+          done();
+        });
+      });
+    });
+  });
 
-  test('extend should behave as expected', () => {
-    const InvalidFileError = FlagError.extend({
-      name: 'InvalidFileError',
-      invalidFile: function() {
-        let code = this.statusCode;
-        return isNaN(code) ? true : (code === 404);
+  suite('Serialization', function() {
+    descendants.forEach((C, i) => {
+      test(`${i}${ordinal(i)} descendant should serialize correctly`, done => {
+        let c = new C(new Error());
+        let t = c.transport();
+        let j = JSON.stringify(c);
+        assert.strictEqual(c.serializeStack, (typeof t.stack === 'string'));
+        if (!c.serializeStack) {
+          t.values.forEach(v => assert.ifError(v.stack));
+        }
+        assert.deepEqual(t, JSON.parse(j));
+        done();
+      });
+    });
+  });
+
+  suite('Events', function() {
+    utils.makeDescendants(SwError, [{
+      name: 'First',
+      onPush: function() {
+        this.coll.push(this.name);
+      },
+      onConstructed: function() {
+        this.coll = [];
       }
-    });
-
-    driver.forEach(d => {
-      let err = InvalidFileError.apply(null, d.args);
-      assert(err instanceof FlagError);
-      assert(err instanceof InvalidFileError);
-      assert.strictEqual(InvalidFileError, err.constructor);
-      assert.strictEqual(InvalidFileError, InvalidFileError.prototype.constructor);
-      assert.deepEqual(d.transport, err.transport());
-      assert.deepEqual(d.properties.sort(), Object.getOwnPropertyNames(err).sort());
+    }, {
+      name: 'Second',
+      onPush: function() {
+        this.coll.push(this.name);
+      }
+    }, {
+      name: 'Third',
+      onPush: function() {
+        this.coll.push(this.name);
+      }
+    }]).forEach((C, i) => {
+      test(`${i}${ordinal(i)} descendant inherit its parent's events`, done => {
+        let c = new C(new Error());
+        process.nextTick((iter) => {
+          if (iter > 0) {
+            assert.strictEqual(iter, c.coll.length);
+          }
+          done();
+        }, i);
+      });
     });
   });
 
-  test('should allow extensions which do not retrieve stack data', () => {
-    const IgnoreStackError = FlagError.extend({
-      ignoreStack: true
-    });
-
-    let err = new IgnoreStackError('Just passing information');
-    
-    assert(err instanceof IgnoreStackError);
-    assert.ifError(err.stack);
-    assert.strictEqual(true, err.ignoreStack);
-    assert.strictEqual('FlagError', err.name);
-    assert.strictEqual('Just passing information', err.message);
-    assert.deepEqual(['ignoreStack', 'name', 'message'], Object.getOwnPropertyNames(err));
-  });
 });
+
+function ordinal(k) {
+  switch (k) {
+    case 1:
+      return 'st';
+    case 2:
+      return 'nd';
+    case 3:
+      return 'rd';
+    default:
+      return 'th';
+  }
+}
+
+function logIf() {
+  if (process.argv[process.argv.length - 1] === '-v') {
+    console.log.apply(null, arguments);
+  }
+}
