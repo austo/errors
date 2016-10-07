@@ -177,6 +177,35 @@ suite('SwError', function() {
         });
     });
   });
+
+  suite('hasValues', function() {
+    [{
+      a: [],
+      n: 0
+    }, {
+      a: [1],
+      n: 1
+    }, {
+      a: [1, 2],
+      n: 2
+    }, {
+      a: ['msg'],
+      n: 0
+    }, {
+      a: ['msg', 1],
+      n: 1
+    }, {
+      a: ['msg', 1, 2],
+      n: 2
+    }].forEach(args => {
+      test(`should correctly handle ${args.a.length} values`, () => {
+        let e = new SwError(args.a);
+        assert.strictEqual(args.n, e.values.length);
+        assert.strictEqual((args.n > 0), e.hasValues());
+      });
+    });
+  });
+
 });
 
 function ordinal(k) {

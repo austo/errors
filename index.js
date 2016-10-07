@@ -86,6 +86,10 @@ SwError.prototype.toJSON = function() {
   return this.transport();
 };
 
+SwError.prototype.hasValues = function() {
+  return this.values.length > 0;
+};
+
 // NOTE: adding properties on the constructor itself
 // is really not safe for V8 optimization
 // (https://github.com/petkaantonov/bluebird/wiki/Optimization-killers#3-managing-arguments).
