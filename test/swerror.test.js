@@ -122,6 +122,61 @@ suite('SwError', function() {
     });
   });
 
+  suite('AsyncConstruct', function() {
+    let props = [{
+      name: 'First',
+      onConstructed: function first() {
+        this.coll = [];
+        this.coll.push(this.name);
+      }
+    }, {
+      name: 'Second',
+      onConstructed: function second() {
+        this.coll.push(this.name);
+      }
+    }, {
+      name: 'Third',
+      onConstructed: function third() {
+        this.coll.push(this.name);
+      }
+    }];
+
+    utils.makeDescendants(SwError, props).forEach((C, i) => {
+      test(`${i}${ordinal(i)} should run construction functions ` +
+        `synchronously and in sequence`, done => {
+          let c = new C(new Error());
+          if (i > 0) {
+            assert.strictEqual(i, C.events.constructed.length);
+            assert.strictEqual(props[i - 1].onConstructed, C.events.constructed[i - 1]);
+            assert.strictEqual(i, c.coll.length);
+            assert.strictEqual(c.name, c.coll[i - 1]);
+          }
+          done();
+        });
+    });
+
+    utils.makeDescendants(SwError, props.map(p => {
+      p.asyncConstruct = true;
+      return p;
+    })).forEach((C, i) => {
+      test(`${i}${ordinal(i)} should run construction functions ` +
+        `asynchronously and in sequence`, done => {
+          let c = new C(new Error());
+          if (i > 0) {
+            assert.strictEqual(i, C.events.constructed.length);
+            assert.strictEqual(props[i - 1].onConstructed, C.events.constructed[i - 1]);
+            assert(c.coll === undefined);
+            process.nextTick(iter => {
+              assert.strictEqual(iter, c.coll.length);
+              assert.strictEqual(c.name, c.coll[iter - 1]);
+              done();
+            }, i);
+          } else {
+            done();
+          }
+        });
+    });
+  });
 });
 
 function ordinal(k) {
@@ -142,4 +197,3 @@ function logIf() {
     console.log.apply(null, arguments);
   }
 }
-

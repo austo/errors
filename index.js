@@ -40,8 +40,14 @@ function newError(swerr, argsArray) {
   Object.defineProperty(swerr, 'push', { value: makePush(swerr, ee) });
   Object.defineProperty(swerr, 'on', { value: makeOn(swerr, ee) });
 
+  if (!swerr.asyncConstruct) {
+    ee.listeners('constructed').forEach(fn => fn(swerr));
+  }
+
   process.nextTick(() => {
-    ee.emit('constructed', swerr);
+    if (swerr.asyncConstruct) {
+      ee.emit('constructed', swerr);
+    }
     swerr.values.forEach(v => ee.emit('push', v));
   });
 
@@ -153,10 +159,7 @@ function mergeSpecs(parent, childProps) {
     result.spec[k] = parent.spec[k];
   });
   Object.keys(parent.events).forEach(k => {
-    result.events[k] = result.events[k] || [];
-    parent.events[k].forEach(evt => {
-      result.events[k].unshift(evt);
-    });
+    result.events[k] = parent.events[k].slice();
   });
   Object.keys(childProps).forEach(k => {
     if (!allowedEventsRe.test(k)) {
