@@ -206,6 +206,45 @@ suite('SwError', function() {
     });
   });
 
+  suite('push', function() {
+    [{
+      tag: 'single value',
+      inp: ['v'],
+      exp: ['v']
+    }, {
+      tag: 'multiple values',
+      inp: ['v', 'vv', 'vvv'],
+      exp: ['v', 'vv', 'vvv']
+    }, {
+      tag: 'array',
+      inp: [
+        ['v', 'vv', 'vvv']
+      ],
+      exp: ['v', 'vv', 'vvv']
+    }, {
+      tag: 'varargs with array',
+      inp: ['v', 'vv', ['av', 'avv'], 'vvv'],
+      exp: ['v', 'vv', 'av', 'avv', 'vvv']
+    }].forEach(t => {
+      test(`should handle ${t.tag} and return 'this'`, done => {
+        let swerr = new SwError();
+        let err = swerr.push.apply(swerr, t.inp);
+        process.nextTick(() => {
+          assert.deepEqual(t.exp, swerr.values);
+          assert.strictEqual(swerr, err);
+          done();
+        });
+      });
+    });
+
+    test(`should normally return 'this'`, () => {
+      let swerr = new SwError();
+      let err = swerr.push('v');
+      assert.deepEqual(['v'], swerr.values);
+      assert.strictEqual(swerr, err);
+    });
+
+  });
 });
 
 function ordinal(k) {

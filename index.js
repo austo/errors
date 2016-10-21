@@ -55,10 +55,17 @@ function newError(swerr, argsArray) {
 }
 
 function makePush(swerr, ee) {
-  return function push(v) {
+  return function push() {
     swerr.values = swerr.values || [];
-    swerr.values.push(v);
-    ee.emit('push', v);
+    let args = pargs.slice.apply(null, arguments);
+    args.forEach(a => {
+      if (Array.isArray(a)) {
+        return push.apply(swerr, a);
+      }
+      swerr.values.push(a);
+      ee.emit('push', a);
+    });
+    return swerr;
   };
 }
 
