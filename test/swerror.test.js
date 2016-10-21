@@ -227,10 +227,12 @@ suite('SwError', function() {
       exp: ['v', 'vv', 'av', 'avv', 'vvv']
     }].forEach(t => {
       test(`should handle ${t.tag} and return 'this'`, done => {
-        let swerr = new SwError();
+        let vals = [];
+        let swerr = new SwError().on('push', v => vals.push(v));
         let err = swerr.push.apply(swerr, t.inp);
         process.nextTick(() => {
           assert.deepEqual(t.exp, swerr.values);
+          assert.deepEqual(t.exp, vals);
           assert.strictEqual(swerr, err);
           done();
         });
@@ -244,6 +246,14 @@ suite('SwError', function() {
       assert.strictEqual(swerr, err);
     });
 
+    test(`instance push should work with constructor args`, () => {
+      let vals = [];
+      let swerr = new SwError([1, 2, [3, 4], 5]).on('push', v => vals.push(v));
+      process.nextTick(() => {
+        assert.deepEqual([1, 2, 3, 4, 5], swerr.values);
+        assert.deepEqual([1, 2, 3, 4, 5], vals);
+      });
+    });
   });
 });
 
