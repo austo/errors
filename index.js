@@ -52,7 +52,7 @@ function newError(swerr, argsArray) {
   });
 
   Object.defineProperty(swerr, 'push', { value: makePush(swerr, ee) });
-  Object.defineProperty(swerr, 'on', { value: makeOn(swerr, ee) });
+  Object.defineProperty(swerr, 'on', { value: makeOn(swerr, ee.ee) });
 
   if (!swerr.asyncConstruct) {
     ee.ee.listeners('constructed').forEach(fn => fn(swerr));
@@ -83,7 +83,7 @@ function makePush(swerr, ee) {
   };
 }
 
-function makeOn(swerr, eeWrapper) {
+function makeOn(swerr, ee) {
   return function on(evt, fn) {
     if (evt === 'constructed' || allowedEvents.indexOf(evt) === -1) {
       throw new TypeError(`SwError: unsupported event ${evt}`);
@@ -91,7 +91,7 @@ function makeOn(swerr, eeWrapper) {
     if (typeof fn !== 'function') {
       throw new TypeError('second argument must be a function');
     }
-    eeWrapper.ee.on(evt, fn.bind(swerr));
+    ee.on(evt, fn.bind(swerr));
     return swerr;
   };
 }
