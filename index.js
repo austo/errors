@@ -114,7 +114,7 @@ SwError.prototype.hasValues = function() {
 // NOTE: adding properties on the constructor itself
 // is really not safe for V8 optimization
 // (https://github.com/petkaantonov/bluebird/wiki/Optimization-killers#3-managing-arguments).
-// We skirt the issue here by _always_ adding the same 4 properties to each
+// We skirt the issue here by _always_ adding the same 5 properties to each
 // extended constructor.
 
 // TODO: It's optimizing correctly now, but...
@@ -132,6 +132,7 @@ SwError.parent = Error;
 
 // TODO: can we put the spec items on the extension's prototype?
 SwError.extend = makeExtend(SwError);
+SwError.from = makeFrom(SwError);
 
 module.exports = SwError;
 
@@ -147,6 +148,7 @@ function makeExtend(parent) {
     child.events = extensionProps.events;
     child.parent = parent;
     child.extend = makeExtend(child);
+    child.from = makeFrom(child);
     return child;
   };
 }
@@ -167,6 +169,18 @@ function extend(clazz) {
   SwErrorExtension.prototype = Object.create(clazz.prototype);
   SwErrorExtension.prototype.constructor = SwErrorExtension;
   return SwErrorExtension;
+}
+
+function makeFrom(P) {
+  return function(swerr) {
+    if (!(swerr instanceof SwError)) {
+      return new P();
+    }
+    if (swerr.message) {
+      return new P(swerr.message, swerr.values);
+    }
+    return new P(swerr.values);
+  };
 }
 
 const allowedEvents = ['constructed', 'push'];

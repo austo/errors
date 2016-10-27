@@ -226,7 +226,7 @@ suite('SwError', function() {
       inp: ['v', 'vv', ['av', 'avv'], 'vvv'],
       exp: ['v', 'vv', 'av', 'avv', 'vvv']
     }].forEach(t => {
-      test(`should handle ${t.tag} and return 'this'`, done => {
+      test(`should handle ${t.tag} and return \`this\``, done => {
         let vals = [];
         let swerr = new SwError().on('push', v => vals.push(v));
         let err = swerr.push.apply(swerr, t.inp);
@@ -239,7 +239,7 @@ suite('SwError', function() {
       });
     });
 
-    test(`should normally return 'this'`, () => {
+    test(`should normally return \`this\``, () => {
       let swerr = new SwError();
       let err = swerr.push('v');
       assert.deepEqual(['v'], swerr.values);
@@ -254,6 +254,55 @@ suite('SwError', function() {
         assert.deepEqual([1, 2, 3, 4, 5], vals);
       });
     });
+  });
+
+  suite('from', function() {
+    test('`from` should be function on constructor', () => {
+      assert.strictEqual('function', typeof SwError.from);
+    });
+
+    test('`from` should instantiate receiver', () => {
+      let swerr1 = new SwError('Oops', new Error()),
+        swerr2 = SwError.from(swerr1);
+      assert(swerr2 instanceof SwError);
+      assert.deepEqual(swerr1.values, swerr2.values);
+      assert.deepEqual(swerr1.message, swerr2.message);
+    });
+
+    const BabyError = SwError.extend({
+      name: 'BabyError'
+    });
+
+    [{
+      tag: 'single value',
+      inp: ['v']
+    }, {
+      tag: 'multiple values',
+      inp: ['v', 'vv', 'vvv']
+    }, {
+      tag: 'array',
+      inp: [
+        ['v', 'vv', 'vvv']
+      ]
+    }, {
+      tag: 'varargs with array',
+      inp: ['v', 'vv', ['av', 'avv'], 'vvv']
+    }].forEach(t => {
+      test(`child \`from\` should correctly appropriate parent instance [${t.tag}]`, () => {
+        let swerr = SwError.apply(null, t.inp);
+        let baby = BabyError.from(swerr);
+        assert(baby instanceof BabyError);
+        assert.deepEqual(swerr.values, baby.values);
+        assert.deepEqual(swerr.message, baby.message);
+      });
+    });
+
+    test(`if passed non-SwError, \`from\` should instantiate receiver w/o arguments`, () => {
+      let swerr = SwError.from({msg: 'not SwError!'});
+      assert(swerr instanceof SwError);
+      assert.deepEqual([], swerr.values);
+    });
+
   });
 });
 
