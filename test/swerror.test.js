@@ -178,7 +178,7 @@ suite('SwError', function() {
     });
   });
 
-  suite('hasValues', function() {
+  suite(`\`hasValues\``, function() {
     [{
       a: [],
       n: 0
@@ -206,7 +206,7 @@ suite('SwError', function() {
     });
   });
 
-  suite('push', function() {
+  suite(`\`push\``, function() {
     [{
       tag: 'single value',
       inp: ['v'],
@@ -256,7 +256,7 @@ suite('SwError', function() {
     });
   });
 
-  suite('from', function() {
+  suite(`\`from\` factory method`, function() {
     test('`from` should be function on constructor', () => {
       assert.strictEqual('function', typeof SwError.from);
     });
