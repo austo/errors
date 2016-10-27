@@ -172,9 +172,24 @@ function extend(clazz) {
 }
 
 function makeFrom(P) {
-  return function(swerr) {
-    if (!(swerr instanceof SwError)) {
-      return new P();
+  return function(_swerr, _msg) {
+    let swerr, msg;
+    if (_swerr instanceof SwError) {
+      swerr = _swerr;
+    } else if (typeof _swerr === 'string') {
+      msg = _swerr;
+    }
+    if (_msg instanceof SwError && !swerr) {
+      swerr = _msg;
+    } else if (typeof _msg === 'string' && !msg) {
+      msg = _msg;
+    }
+
+    if (!swerr) {
+      return new P(msg);
+    }
+    if (msg) {
+      return new P(msg, swerr.values);
     }
     if (swerr.message) {
       return new P(swerr.message, swerr.values);

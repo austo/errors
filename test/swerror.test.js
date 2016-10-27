@@ -298,9 +298,48 @@ suite('SwError', function() {
     });
 
     test(`if passed non-SwError, \`from\` should instantiate receiver w/o arguments`, () => {
-      let swerr = SwError.from({msg: 'not SwError!'});
+      let swerr = SwError.from({ msg: 'not SwError!' });
       assert(swerr instanceof SwError);
       assert.deepEqual([], swerr.values);
+    });
+
+    let s1 = new SwError('First oops', 'v1', 'vv1'),
+      s2 = new SwError('Second oops', 'v2', 'vv2');
+
+    [{
+      tag: 'msg, instance',
+      inp: ['First message', s1],
+      exp: {
+        message: 'First message',
+        values: s1.values
+      }
+    }, {
+      tag: 'instance, msg',
+      inp: [s1, 'Second message'],
+      exp: {
+        message: 'Second message',
+        values: s1.values
+      }
+    }, {
+      tag: 'instance, instance',
+      inp: [s1, s2],
+      exp: {
+        message: s1.message,
+        values: s1.values
+      }
+    }, {
+      tag: 'msg, msg',
+      inp: ['Third message', 'Fourth message'],
+      exp: {
+        message: 'Third message',
+        values: []
+      }
+    }].forEach(t => {
+      test(`should handle optional message argument [${t.tag}]`, () => {
+        let swerr = SwError.from.apply(null, t.inp);
+        assert.strictEqual(t.exp.message, swerr.message);
+        assert.deepEqual(t.exp.values, swerr.values);
+      });
     });
 
   });
