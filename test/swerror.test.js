@@ -206,6 +206,34 @@ suite('SwError', function() {
     });
   });
 
+  suite(`\`callbackValue\``, function() {
+    [{
+      a: [],
+      n: 0
+    }, {
+      a: [1],
+      n: 1
+    }, {
+      a: [1, 2],
+      n: 2
+    }, {
+      a: ['msg'],
+      n: 0
+    }, {
+      a: ['msg', 1],
+      n: 1
+    }, {
+      a: ['msg', 1, 2],
+      n: 2
+    }].forEach(args => {
+      test(`should correctly handle ${args.a.length} values`, () => {
+        let e = new SwError(args.a);
+        assert.strictEqual(args.n, e.values.length);
+        assert.strictEqual((args.n > 0) ? e : null, e.callbackValue());
+      });
+    });
+  });
+
   suite(`\`push\``, function() {
     [{
       tag: 'single value',

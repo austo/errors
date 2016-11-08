@@ -111,6 +111,10 @@ SwError.prototype.hasValues = function() {
   return this.values.length > 0;
 };
 
+SwError.prototype.callbackValue = function() {
+  return this.hasValues() ? this : null;
+};
+
 // NOTE: adding properties on the constructor itself
 // is really not safe for V8 optimization
 // (https://github.com/petkaantonov/bluebird/wiki/Optimization-killers#3-managing-arguments).
