@@ -71,8 +71,13 @@ function newError(swerr, argsArray) {
 function makePush(swerr, ee) {
   return function push() {
     swerr.values = swerr.values || [];
-    let args = pargs.slice.apply(null, arguments);
+    const args = pargs.slice.apply(null, arguments);
     args.forEach(a => {
+      if (a === swerr) {
+        // avoid circular references (should really be done in `transport`,
+        // but for now there's no reason not to do it here).
+        return;
+      }
       if (Array.isArray(a)) {
         return push.apply(swerr, a);
       }

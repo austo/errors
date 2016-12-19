@@ -274,12 +274,23 @@ suite('SwError', function() {
       assert.strictEqual(swerr, err);
     });
 
-    test(`instance push should work with constructor args`, () => {
+    test(`instance push should work with constructor args`, done => {
       let vals = [];
       let swerr = new SwError([1, 2, [3, 4], 5]).on('push', v => vals.push(v));
       process.nextTick(() => {
         assert.deepEqual([1, 2, 3, 4, 5], swerr.values);
         assert.deepEqual([1, 2, 3, 4, 5], vals);
+        done();
+      });
+    });
+
+    test(`pushing \`this\` should be a no-op`, done => {
+      const swerr = new SwError(1, 2, 3, 4, 5);
+      process.nextTick(() => {
+        swerr.on('push', () => assert(false));
+        swerr.push(swerr);
+        assert.deepEqual([1, 2, 3, 4, 5], swerr.values);
+        done();
       });
     });
   });
