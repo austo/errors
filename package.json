@@ -1,6 +1,6 @@
 {
   "name": "swerrs",
-  "version": "0.0.9",
+  "version": "0.0.10",
   "description": "Easy extensible error types for Node.js",
   "main": "index.js",
   "scripts": {
