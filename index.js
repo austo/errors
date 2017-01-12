@@ -3,6 +3,11 @@
 const EventEmitter = require('events'),
   pargs = require('./pargs');
 
+const propertyNames = {
+  serializeStack: true,
+  omitStack: true
+};
+
 function SwError() {
   let args = pargs.slice.apply(null, arguments);
   if (!(this instanceof SwError)) {
@@ -18,18 +23,24 @@ function newError(swerr, argsArray) {
     events = swerr.constructor.events;
 
   Object.keys(spec).forEach(k => {
-    let v = renderTemplate(spec[k], spec);
-    swerr[k] = v;
+    const v = renderTemplate(spec[k], spec);
+    if (propertyNames[k]) {
+      Object.defineProperty(swerr, k, { value: v });
+    } else {
+      swerr[k] = v;
+    }
   });
 
-  let args = pargs.parse(argsArray);
+  const args = pargs.parse(argsArray);
 
   swerr.message = args.message || swerr.message;
   swerr.values = args.values;
 
-  Error.captureStackTrace(swerr, swerr.constructor);
+  if (!swerr.omitStack) {
+    Error.captureStackTrace(swerr, swerr.constructor);
+  }
 
-  let ee = {
+  const ee = {
     ee: new EventEmitter(),
     count: 0,
     emit: function() {
@@ -214,7 +225,7 @@ const allowedEventsRe = new RegExp('^on(' +
   .join('|') + ')$');
 
 function mergeSpecs(parent, childProps) {
-  let result = {
+  const result = {
     spec: {},
     events: {}
   };

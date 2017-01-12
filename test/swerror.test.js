@@ -178,6 +178,17 @@ suite('SwError', function() {
     });
   });
 
+  suite('OmitStack', function() {
+    test('should not have `stack` property when extended with `omitStack`', () => {
+      const OmitStackError = SwError.extend({ name: 'OmitStackError', omitStack: true });
+      const swerr = new SwError();
+      const stackless = new OmitStackError();
+      logIf(stackless);
+      assert.strictEqual(swerr.hasOwnProperty('stack'), true);
+      assert.strictEqual(stackless.hasOwnProperty('stack'), false);
+    });
+  });
+
   suite(`\`hasValues\``, function() {
     [{
       a: [],
